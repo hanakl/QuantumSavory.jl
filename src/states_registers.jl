@@ -23,11 +23,13 @@ struct Register # TODO better type description
     tag_info::Dict{Int128, @NamedTuple{tag::Tag, slot::Int, time::Float64}}
     guids::Vector{Int128}
     netparent::Ref{Any}
+    waiters::Dict{Tag, Dict{Tuple{Function, Vararg{Any}}, Vector{Store{1, Any}}}}
 end
 
 function Register(traits, reprs, bg, sr, si, at)
     env = ConcurrentSim.Simulation()
-    Register(traits, reprs, bg, sr, si, at, [ConcurrentSim.Resource(env) for _ in traits], Dict{Int128, Tuple{Tag, Int64, Float64}}(), [], nothing)
+    Register(traits, reprs, bg, sr, si, at, [ConcurrentSim.Resource(env) for _ in traits], Dict{Int128, Tuple{Tag, Int64, Float64}}(), [], nothing, Dict{Tag, Dict{Tuple{Function, Vararg{Any}}, []}}()
+    )
 end
 
 Register(traits,reprs,bg,sr,si) = Register(traits,reprs,bg,sr,si,zeros(length(traits)))

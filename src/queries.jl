@@ -20,6 +20,17 @@ function tag!(ref::RegRef, tag)
     id = guid()
     push!(ref.reg.guids, id)
     ref.reg.tag_info[id] = (;tag, slot=ref.idx, time=now(get_time_tracker(ref)))
+    if haskey(ref.waiters, tag)
+        for ((query, args), resources) in ref.waiters[tag]
+            node = query(args...)
+            if node !== nothing
+                for resource in resources
+                    put!(resource, node)
+                end
+                delete!(ref.waiters[tag], (query, args))
+            end
+        end
+    end
     return id
 end
 
@@ -40,7 +51,19 @@ function untag!(ref::RegOrRegRef, id::Integer)
     i = findfirst(==(id), reg.guids)
     isnothing(i) ? throw(QueryError("Attempted to delete a nonexistent tag id", untag!, id)) : deleteat!(reg.guids, i) # TODO make sure there is a clear error message
     to_be_deleted = reg.tag_info[id]
+    tag = to_be_deleted[1]
     delete!(reg.tag_info, id)
+    if haskey(ref.waiters, tag)
+        for ((query, args), resources) in ref.waiters[tag]
+            node = query(args...)
+            if node !== nothing
+                for resource in resources
+                    put!(resource, node)
+                end
+                delete!(ref.waiters[tag], (query, args))
+            end
+        end
+    end
     return to_be_deleted
 end
 

@@ -394,7 +394,20 @@ end
 
 @resumable function (prot::EntanglementConsumer)()
     if isnothing(prot.period)
-        error("In `EntanglementConsumer` we do not yet support waiting on register to make qubits available") # TODO
+        query1 = query(prot.net[prot.nodeA], EntanglementCounterpart, prot.nodeB, ❓; locked=false, assigned=true) 
+        query2 = query(prot.net[prot.nodeB], EntanglementCounterpart, prot.nodeA, query1.slot.idx; locked=false, assigned=true)
+        tag = Tag(EntanglementCounterpart)
+        if isnothing(query1)
+            resource = Store{1}(sim)
+            waiters_dict = prot.net[prot.nodeA].waiters
+            if !haskey(waiters_dict, tag)
+                waiters_dict[tag] = Dict((query, (prot.net[prot.nodeA], EntanglementCounterpart, prot.nodeB, ❓; locked=false, assigned=true)) => [resource]) #need to reformat args so it's accessible in !tag
+            end
+            if haskey(waiters_dict[tag], (query, args)) # I'll call them args for now
+                push!(waiters_dict[tag][query, args], resource)
+            end
+            take!(resource)
+        end
     end
     while true
         query1 = query(prot.net[prot.nodeA], EntanglementCounterpart, prot.nodeB, ❓; locked=false, assigned=true) # TODO Need a `querydelete!` dispatch on `Register` rather than using `query` here followed by `untag!` below
